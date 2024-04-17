@@ -1,5 +1,5 @@
 import LiveCursors from "./cursor/LiveCursors";
-import { useBroadcastEvent, useEventListener, useMyPresence, useOthers } from "@/liveblocks.config";
+import { useBroadcastEvent, useEventListener, useMyPresence, useOthers, useRedo, useUndo } from "@/liveblocks.config";
 import {useCallback, useEffect, useState} from 'react';
 import { CursorChat } from "./cursor/CursorChat";
 import { CursorMode, CursorState, ReactionEvent } from "@/types/type";
@@ -7,12 +7,22 @@ import ReactionSelector from "./reaction/ReactionButton";
 import FlyingReaction from "./reaction/FlyingReaction";
 import useInterval from "@/hooks/useInterval";
 import { Comments } from "./comments/Comments";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
+import { shortcuts } from "@/constants";
+
 
 
 type Props ={
   canvasRef: React.MutableRefObject<HTMLCanvasElement | null>;
+  undo:()=> void;
+  redo:()=>void;
 }
-export const Live = ({canvasRef}: Props) => {
+export const Live = ({canvasRef, undo , redo}: Props) => {
   const others = useOthers();
   const[{cursor},updateMyPresence]=useMyPresence() as any;
 
@@ -130,9 +140,41 @@ export const Live = ({canvasRef}: Props) => {
     setcursorState({mode:CursorMode.Reaction,reaction,isPressed:false})
   },[])
 
+  const handleContextMenuClick = useCallback((key:string)=>{
+    switch (key) {
+      case 'Chat':
+        setcursorState({
+          mode:CursorMode.Chat,
+          previousMessage:null,
+          message:''
+        })
+        
+        break;
+      
+      case 'Undo':
+       undo();
+        break;
+      
+      case 'Redo':
+        redo();
+        break;
+
+      case 'Reactions':
+        setcursorState({
+          mode: CursorMode.ReactionSelector
+        })       
+        break;
+    
+      default:
+        break;
+    }
+  },[])
+
 
   return (
-    <div
+    <ContextMenu>
+
+    <ContextMenuTrigger
         id="canvas"
         onPointerMove={handlePointerMove}
         onPointerLeave={handlePointerLeave}
@@ -169,7 +211,18 @@ export const Live = ({canvasRef}: Props) => {
     <LiveCursors others={others} />
 
     <Comments />
-    </div>
+    </ContextMenuTrigger>
+      <ContextMenuContent className="right-menu-content">
+        {shortcuts.map((item)=>(
+          <ContextMenuItem key={item.key} onClick={()=>handleContextMenuClick(item.name)}
+          className="right-menu-item"
+          >
+            <p>{item.name}</p>
+            <p className="text-xs text-primary-grey-300">{item.shortcut}</p>
+          </ContextMenuItem>
+        ))}
+      </ContextMenuContent>
+    </ContextMenu>
     
   )
 }
